@@ -1,29 +1,223 @@
 // script.js
 
-// Mobile Menu Toggle
-const menuToggle = document.querySelector(".menu-toggle");
-const navUl = document.querySelector("nav ul");
-
-menuToggle.addEventListener("click", () => {
-  navUl.classList.toggle("show");
+// Wait for DOM to be fully loaded
+document.addEventListener("DOMContentLoaded", function () {
+  // Initialize all major components
+  initNavigation();
+  initSmoothScroll();
+  initAnimations();
+  initFormValidation();
+  initPortfolioFilters();
+  initLazyLoading();
 });
 
-// Smooth Scrolling for Anchor Links
-document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
-  anchor.addEventListener("click", function (e) {
-    e.preventDefault();
+// Navigation functionality
+function initNavigation() {
+  const menuToggle = document.querySelector(".menu-toggle");
+  const navUl = document.querySelector("nav ul");
+  const header = document.querySelector("header");
+  let lastScroll = 0;
 
-    const targetId = this.getAttribute("href").substring(1);
-    const targetElement = document.getElementById(targetId);
+  // Mobile menu toggle
+  if (menuToggle && navUl) {
+    menuToggle.addEventListener("click", () => {
+      navUl.classList.toggle("show");
+      menuToggle.classList.toggle("active");
+    });
+  }
 
-    if (targetElement) {
-      window.scrollTo({
-        top: targetElement.offsetTop,
-        behavior: "smooth",
+  // Header scroll behavior
+  window.addEventListener(
+    "scroll",
+    () => {
+      const currentScroll = window.pageYOffset;
+
+      // Add/remove header background
+      if (currentScroll > 50) {
+        header.classList.add("scrolled");
+      } else {
+        header.classList.remove("scrolled");
+      }
+
+      // Hide/show header on scroll
+      if (currentScroll > lastScroll && currentScroll > 100) {
+        header.classList.add("header-hidden");
+      } else {
+        header.classList.remove("header-hidden");
+      }
+
+      lastScroll = currentScroll;
+    },
+    { passive: true }
+  );
+}
+
+// Smooth scrolling for anchor links
+function initSmoothScroll() {
+  document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+    anchor.addEventListener("click", function (e) {
+      e.preventDefault();
+      const targetId = this.getAttribute("href").substring(1);
+      const targetElement = document.getElementById(targetId);
+
+      if (targetElement) {
+        // Close mobile menu if open
+        document.querySelector("nav ul").classList.remove("show");
+        document.querySelector(".menu-toggle").classList.remove("active");
+
+        // Smooth scroll to target
+        targetElement.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+    });
+  });
+}
+
+// Scroll animations
+function initAnimations() {
+  const animatedElements = document.querySelectorAll(".animate__animated");
+
+  const observerOptions = {
+    threshold: 0.2,
+    rootMargin: "0px 0px -50px 0px",
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        const element = entry.target;
+        const delay = element.dataset.delay || "0s";
+        element.style.animationDelay = delay;
+        element.classList.add("animate__fadeInUp");
+        observer.unobserve(element);
+      }
+    });
+  }, observerOptions);
+
+  animatedElements.forEach((element) => observer.observe(element));
+}
+
+// Form validation and submission
+function initFormValidation() {
+  const contactForm = document.getElementById("contact-form");
+
+  if (contactForm) {
+    contactForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      if (validateForm(contactForm)) {
+        try {
+          const formData = new FormData(contactForm);
+          const response = await submitForm(formData);
+
+          showNotification("success", "Message sent successfully!");
+          contactForm.reset();
+        } catch (error) {
+          showNotification(
+            "error",
+            "Failed to send message. Please try again."
+          );
+        }
+      }
+    });
+  }
+}
+
+// Portfolio filtering
+function initPortfolioFilters() {
+  const filterButtons = document.querySelectorAll(".portfolio-filter button");
+  const portfolioItems = document.querySelectorAll(".portfolio-item");
+
+  filterButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const filter = button.dataset.filter;
+
+      // Update active button
+      filterButtons.forEach((btn) => btn.classList.remove("active"));
+      button.classList.add("active");
+
+      // Filter items
+      portfolioItems.forEach((item) => {
+        const category = item.dataset.category;
+        if (filter === "all" || category === filter) {
+          item.style.display = "block";
+          setTimeout(() => item.classList.add("show"), 0);
+        } else {
+          item.classList.remove("show");
+          setTimeout(() => (item.style.display = "none"), 300);
+        }
       });
+    });
+  });
+}
+
+// Lazy loading for images
+function initLazyLoading() {
+  const lazyImages = document.querySelectorAll("img[data-src]");
+
+  const imageObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        const img = entry.target;
+        img.src = img.dataset.src;
+        img.onload = () => img.classList.add("loaded");
+        observer.unobserve(img);
+      }
+    });
+  });
+
+  lazyImages.forEach((img) => imageObserver.observe(img));
+}
+
+// Helper function for form validation
+function validateForm(form) {
+  let isValid = true;
+  const requiredFields = form.querySelectorAll("[required]");
+
+  requiredFields.forEach((field) => {
+    if (!field.value.trim()) {
+      isValid = false;
+      field.classList.add("error");
+    } else {
+      field.classList.remove("error");
     }
   });
-});
+
+  return isValid;
+}
+
+// Helper function for form submission
+async function submitForm(formData) {
+  const response = await fetch("submit_form.php", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error("Form submission failed");
+  }
+
+  return response.text();
+}
+
+// Notification system
+function showNotification(type, message) {
+  const notification = document.createElement("div");
+  notification.className = `notification ${type}`;
+  notification.textContent = message;
+
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    notification.classList.add("show");
+    setTimeout(() => {
+      notification.classList.remove("show");
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
+  }, 100);
+}
 
 // Portfolio Item Hover Effect (CSS can handle most of this, but JS can add some dynamic effects)
 const portfolioItems = document.querySelectorAll(".portfolio-item");
@@ -234,3 +428,12 @@ window.addEventListener("scroll", () => {
 
 //... (rest of your JavaScript code)...
 //... (rest of your JavaScript code) code)
+
+document.addEventListener("DOMContentLoaded", function () {
+  const menuToggle = document.querySelector(".menu-toggle");
+  const navLinks = document.querySelector(".nav-links");
+
+  menuToggle.addEventListener("click", function () {
+    navLinks.classList.toggle("active");
+  });
+});
